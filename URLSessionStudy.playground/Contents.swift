@@ -6,12 +6,12 @@
 //
 
 import Foundation
-import Dispatch
 
 enum ServiceError: Error {
     case invalidURL
     case decodeFail(Error)
     case network(Error?)
+    case apiError(reason: String)
 }
 
 struct Address: Codable {
@@ -33,9 +33,10 @@ struct Address: Codable {
 class Service {
     private let baseURL = "https://viacep.com.br/ws"
     
-    func get(cep: String, callback: @escaping (Result<Any, ServiceError>) -> Void) {
+    func get(cep: String, callback: @escaping (Result<Address, ServiceError>) -> Void) {
      
         let path = "/\(cep)/json"
+        
         guard let url = URL(string: baseURL + path) else {
             callback(.failure(.invalidURL))
             return
@@ -46,11 +47,36 @@ class Service {
                 callback(.failure(.network(error)))
                 return
             }
-
-            guard let json: Address = try? JSONDecoder().decode(Address.self, from: data) else {
-                return
+            
+//            print("\n---> data: \(String(data: data, encoding: .utf8))")
+            
+//            guard let httpResponse = response as? HTTPURLResponse else {
+//                callback(.failure(.apiError(reason: "Unknown")))
+//                return
+//            }
+//
+//            switch httpResponse.statusCode {
+//            case 400: return callback(.failure(.apiError(reason: "Bad Request")))
+//            case 401: return callback(.failure(.apiError(reason: "Unauthorized")))
+//            case 403: return callback(.failure(.apiError(reason: "Resource forbidden")))
+//            case 404: return callback(.failure(.apiError(reason: "Resource not found")))
+//            case 405..<500: return callback(.failure(.apiError(reason: "client error")))
+//            case 500..<600: return callback(.failure(.apiError(reason: "server error")))
+//            default:
+//                callback(.failure(.apiError(reason: "Unknown")))
+//            }
+            
+            do {
+                let address = try JSONDecoder().decode(Address.self, from: data)
+                callback(.success(address))
+            } catch {
+                callback(.failure(.decodeFail(error)))
             }
-            callback(.success(json))
+
+//            guard let json = try? JSONDecoder().decode(Address.self, from: data) else {
+//                return
+//            }
+//            callback(.success(json))
         }
         task.resume()
     }
@@ -64,7 +90,10 @@ do {
             case let .failure(error):
                 print(error)
             case let .success(data):
-                print(data)
+                print("\n Data: \(data)")
+                print("\n Address: \(data.address)")
+                print("\n Zipcode: \(data.zipcode)")
+                print("\n \(data.city), \(data.uf)")
             }
         }
     }
